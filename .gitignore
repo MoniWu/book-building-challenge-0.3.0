@@ -1,0 +1,21 @@
+# Build artifacts
+*.obj
+*.exe
+*.o
+*.a
+*.so
+*.dll
+*.lib
+*.exp
+
+# IDE files
+.vs/
+.vscode/
+*.suo
+*.user
+*.sln.docstates
+
+# Large data files
+input.pcap
+output.csv
+ground_truth.csv
