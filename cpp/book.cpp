@@ -51,16 +51,17 @@ bool BookBuilder::apply_message(const MdMessage& message) {
       return book.orders.erase(message.order_id) > 0;
     }
     case MessageType::kTrade: {
-      auto it = book.orders.find(message.ask_order_id);
-      if (it == book.orders.end()) {
-        it = book.orders.find(message.bid_order_id);
-      }
-      if (it == book.orders.end()) {
+      auto bid_it = book.orders.find(message.bid_order_id);
+      auto ask_it = book.orders.find(message.ask_order_id);
+
+      // At least one order should exist in the book
+      if (bid_it == book.orders.end() && ask_it == book.orders.end()) {
         return false;
       }
-      uint32_t trade_qty = std::min(message.quantity, it->second.qty);
-      book.cum_volume += trade_qty;
-      book.cum_turnover += static_cast<uint64_t>(message.price) * trade_qty;
+
+      // Update cumulative statistics
+      book.cum_volume += message.quantity;
+      book.cum_turnover += static_cast<uint64_t>(message.price) * message.quantity;
       if (book.high_price == 0 || message.price > book.high_price) {
         book.high_price = message.price;
       }
@@ -68,11 +69,25 @@ bool BookBuilder::apply_message(const MdMessage& message) {
         book.low_price = message.price;
       }
       book.last_price = message.price;
-      if (message.quantity >= it->second.qty) {
-        book.orders.erase(it);
-      } else {
-        it->second.qty -= message.quantity;
+
+      // Reduce quantity or remove bid order
+      if (bid_it != book.orders.end()) {
+        if (message.quantity >= bid_it->second.qty) {
+          book.orders.erase(bid_it);
+        } else {
+          bid_it->second.qty -= message.quantity;
+        }
       }
+
+      // Reduce quantity or remove ask order
+      if (ask_it != book.orders.end()) {
+        if (message.quantity >= ask_it->second.qty) {
+          book.orders.erase(ask_it);
+        } else {
+          ask_it->second.qty -= message.quantity;
+        }
+      }
+
       return true;
     }
     case MessageType::kUnknown:
